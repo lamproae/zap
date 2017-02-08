@@ -21,6 +21,7 @@
 package zapcore
 
 import (
+	"bufio"
 	"io"
 	"sync"
 
@@ -81,6 +82,37 @@ type writerWrapper struct {
 
 func (w writerWrapper) Sync() error {
 	return nil
+}
+
+// The portion of the bufio.Writer API that we need.
+type bufioWriter interface {
+	io.Writer
+	Flush() error
+}
+
+type bufferedWriter struct {
+	buf bufioWriter
+	ws  WriteSyncer
+}
+
+// Buffer creates a WriteSyncer that buffers writes in memory. Buffered
+// WriteSyncers aren't safe for concurrent use, and should be wrapped by Lock.
+func Buffer(ws WriteSyncer) WriteSyncer {
+	return &bufferedWriter{
+		buf: bufio.NewWriter(ws),
+		ws:  ws,
+	}
+}
+
+func (b *bufferedWriter) Write(bs []byte) (int, error) {
+	return b.buf.Write(bs)
+}
+
+func (b *bufferedWriter) Sync() error {
+	var errs multierror.Error
+	errs = errs.Append(b.buf.Flush())
+	errs = errs.Append(b.ws.Sync())
+	return errs.AsError()
 }
 
 type multiWriteSyncer []WriteSyncer

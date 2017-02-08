@@ -37,6 +37,17 @@ type writeSyncSpy struct {
 	testutils.Syncer
 }
 
+type flusher func() error
+
+func (f flusher) Flush() error {
+	return f()
+}
+
+type bufioSpy struct {
+	io.Writer
+	flusher
+}
+
 func requireWriteWorks(t testing.TB, ws WriteSyncer) {
 	n, err := ws.Write([]byte("foo"))
 	require.NoError(t, err, "Unexpected error writing to WriteSyncer.")
@@ -124,4 +135,34 @@ func TestMultiWriteSyncerSync_AllCalled(t *testing.T) {
 	assert.Error(t, ws.Sync(), "Expected first sink to fail")
 	assert.True(t, failed.Called(), "Expected first sink to have Sync method called.")
 	assert.True(t, second.Called(), "Expected call to Sync even with first failure.")
+}
+
+func TestBufferedWriterWrite(t *testing.T) {
+	short := []byte("test")
+	long := bytes.Repeat(short, 1500)
+	_ = long
+	tests := []struct {
+		writer WriteSyncer
+		input  []byte
+		err    bool
+	}{
+		{&testutils.Buffer{}, short, false},
+		{&testutils.Buffer{}, long, false},
+		{&testutils.FailWriter{}, short, false},
+		{&testutils.FailWriter{}, long, true},
+		{&testutils.ShortWriter{}, short, false},
+		{&testutils.ShortWriter{}, long, false},
+	}
+
+	for _, tt := range tests {
+		buf := Buffer(tt.writer)
+		n, err := buf.Write(tt.input)
+		// bufio.Writer
+		assert.Equal(t, len(tt.input), n, "Unexpected number of bytes written.")
+		if tt.err {
+			assert.Error(t, err, "Unexpected success calling Write.")
+		} else {
+			assert.NoError(t, err, "Unexpected error calling Write.")
+		}
+	}
 }
