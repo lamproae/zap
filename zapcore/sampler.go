@@ -101,7 +101,7 @@ func (s *sampler) Check(ent Entry, ce *CheckedEntry) *CheckedEntry {
 	}
 
 	if n := s.counts.Inc(ent.Level, ent.Message); n > s.first {
-		if n == s.first+1 {
+		if n == 1 {
 			time.AfterFunc(s.tick, func() { s.counts.Reset(ent.Level, ent.Message) })
 		}
 		if (n-s.first)%s.thereafter != 0 {

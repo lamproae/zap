@@ -220,7 +220,7 @@ func BenchmarkZapSampleAddingFields(b *testing.B) {
 		benchEncoder(),
 		&testutils.Discarder{},
 		zap.DebugLevel,
-	), time.Second, 10, 10000))
+	), time.Millisecond, 10, 10000))
 	b.ResetTimer()
 	b.RunParallel(func(pb *testing.PB) {
 		i := 0
