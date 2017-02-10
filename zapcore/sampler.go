@@ -100,13 +100,15 @@ func (s *sampler) Check(ent Entry, ce *CheckedEntry) *CheckedEntry {
 		return ce
 	}
 
-	if n := s.counts.Inc(ent.Level, ent.Message); n > s.first {
-		if n == 1 {
-			time.AfterFunc(s.tick, func() { s.counts.Reset(ent.Level, ent.Message) })
-		}
+	n := s.counts.Inc(ent.Level, ent.Message)
+	if n == 1 {
+		time.AfterFunc(s.tick, func() { s.counts.Reset(ent.Level, ent.Message) })
+	}
+	if n > s.first {
 		if (n-s.first)%s.thereafter != 0 {
 			return ce
 		}
 	}
+
 	return s.Facility.Check(ent, ce)
 }
